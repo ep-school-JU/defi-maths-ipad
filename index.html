@@ -34,6 +34,12 @@
 
 <div id="app" class="relative w-full h-full overflow-hidden bg-[#0f172a]">
 
+    <button onclick="toggleFullScreen()" class="absolute top-4 right-4 z-[200] bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white rounded-full p-3 shadow-xl transition-all active:scale-95" title="Plein écran">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+        </svg>
+    </button>
+
     <div id="home-screen" class="screen absolute inset-0 z-50 flex flex-col items-center justify-center gap-8 p-6 bg-slate-900">
         <div class="text-center pop-in mb-4">
             <h1 class="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500 mb-2">Défi Maths</h1>
@@ -226,8 +232,26 @@
     let targetScore = 10;
     let active = false;
     
-    let p1 = { score: 0, ans: '', qVal: 0 };
-    let p2 = { score: 0, ans: '', qVal: 0 };
+    let p1 = { score: 0, ans: '', qVal: 0, history: [] };
+    let p2 = { score: 0, ans: '', qVal: 0, history: [] };
+
+    /* --- FULLSCREEN --- */
+    function toggleFullScreen() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            let docElm = document.documentElement;
+            if (docElm.requestFullscreen) {
+                docElm.requestFullscreen();
+            } else if (docElm.webkitRequestFullscreen) {
+                docElm.webkitRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+    }
 
     /* --- NAVIGATION MENUS --- */
     function showScreen(id) {
@@ -247,19 +271,19 @@
         let d1 = "", d2 = "", d3 = "", d4 = "";
         
         switch(op) {
-            case 'penjumlahan': // Addition
+            case 'penjumlahan': 
                 d1 = "Somme max 10"; d2 = "Nombres de 0 à 9"; d3 = "Nombres de 10 à 19"; d4 = "Jusqu'à 100"; break;
-            case 'pengurangan': // Soustraction
+            case 'pengurangan': 
                 d1 = "Le plus grand est 10"; d2 = "Nombres de 0 à 9"; d3 = "Nombres de 10 à 19"; d4 = "Jusqu'à 100"; break;
-            case 'perkalian': // Multiplication
+            case 'perkalian': 
                 d1 = "Tables 1, 2, 5, 10"; d2 = "Tables jusqu'à 5 + 10"; d3 = "Toutes les tables (2 à 10)"; d4 = "Tables de 2 à 12"; break;
-            case 'pembagian': // Division
+            case 'pembagian': 
                 d1 = "Diviseurs 1, 2, 5, 10"; d2 = "Diviseurs jusqu'à 5 + 10"; d3 = "Diviseurs de 2 à 10"; d4 = "Diviseurs de 2 à 12"; break;
-            case 'complement': // Compléments
+            case 'complement': 
                 d1 = "Compléments à 10"; d2 = "Compléments à 20"; d3 = "Compléments à 100"; d4 = "Compléments à 1000"; break;
-            case 'doubles': // Doubles
+            case 'doubles': 
                 d1 = "Jusqu'à 10 + 10"; d2 = "Jusqu'à 20 + 20"; d3 = "Jusqu'à 50 + 50"; d4 = "Jusqu'à 100 + 100"; break;
-            case 'moities': // Moitiés
+            case 'moities': 
                 d1 = "Moitié jusqu'à 20"; d2 = "Moitié jusqu'à 40"; d3 = "Moitié jusqu'à 100"; d4 = "Moitié jusqu'à 200"; break;
         }
         
@@ -274,8 +298,9 @@
     /* --- DÉMARRAGE --- */
     function startGame(l) {
         level = l;
-        p1.score = 0; p1.ans = '';
-        p2.score = 0; p2.ans = '';
+        p1.score = 0; p1.ans = ''; p1.history = [];
+        p2.score = 0; p2.ans = ''; p2.history = [];
+        
         document.getElementById('p1-score').innerText = '0';
         document.getElementById('p2-score').innerText = '0';
         document.getElementById('p1-input').innerText = '';
@@ -316,47 +341,36 @@
         }, 1000);
     }
 
-    /* --- GÉNÉRATION DES MATHS (FUSIONNÉE) --- */
-    function genQ(pNum) {
+    /* --- GÉNÉRATION DES MATHS (SANS DOUBLONS) --- */
+    function generateSingleQ() {
         let n1, n2, sym, res, txt;
         const r = (min,max) => Math.floor(Math.random()*(max-min+1))+min;
         const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
         
-        // Mode Complément
         if (op === 'complement') {
             let target = (level === 1) ? 10 : (level === 2) ? 20 : (level === 3) ? 100 : 1000;
             n1 = r(1, target - 1);
             res = target - n1;
             txt = `${n1} + ❓ = ${target}`;
-            
-            if(pNum===1) { p1.qVal = res; document.getElementById('p1-q').innerText = txt; }
-            else { p2.qVal = res; document.getElementById('p2-q').innerText = txt; }
-            return;
+            return { qVal: res, txt: txt };
         }
 
-        // Mode Doubles
         if (op === 'doubles') {
             let maxBase = (level === 1) ? 10 : (level === 2) ? 20 : (level === 3) ? 50 : 100;
             n1 = r(1, maxBase);
             res = n1 + n1;
             txt = `${n1} + ${n1} =`;
-            if(pNum===1) { p1.qVal = res; document.getElementById('p1-q').innerText = txt; }
-            else { p2.qVal = res; document.getElementById('p2-q').innerText = txt; }
-            return;
+            return { qVal: res, txt: txt };
         }
 
-        // Mode Moitiés
         if (op === 'moities') {
             let maxBase = (level === 1) ? 10 : (level === 2) ? 20 : (level === 3) ? 50 : 100;
             res = r(1, maxBase);
             n1 = res * 2;
             txt = `Moitié de ${n1} =`;
-            if(pNum===1) { p1.qVal = res; document.getElementById('p1-q').innerText = txt; }
-            else { p2.qVal = res; document.getElementById('p2-q').innerText = txt; }
-            return;
+            return { qVal: res, txt: txt };
         }
 
-        // Mode 4 Opérations classiques
         if (op === 'penjumlahan') {
             sym = '+';
             if (level === 1) { n1 = r(0, 10); n2 = r(0, 10 - n1); }
@@ -402,13 +416,22 @@
         }
 
         txt = `${n1} ${sym} ${n2} =`;
-        if(pNum === 1) {
-            p1.qVal = res;
-            document.getElementById('p1-q').innerText = txt;
-        } else {
-            p2.qVal = res;
-            document.getElementById('p2-q').innerText = txt;
-        }
+        return { qVal: res, txt: txt };
+    }
+
+    function genQ(pNum) {
+        let player = pNum === 1 ? p1 : p2;
+        let q;
+        let maxTries = 50; // Evite une boucle infinie s'il ne reste plus de questions possibles
+        
+        do {
+            q = generateSingleQ();
+            maxTries--;
+        } while (player.history.includes(q.txt) && maxTries > 0);
+        
+        player.history.push(q.txt);
+        player.qVal = q.qVal;
+        document.getElementById(`p${pNum}-q`).innerText = q.txt;
     }
 
     /* --- CLAVIER & VERIFICATION --- */
@@ -470,24 +493,24 @@
                         <div class="absolute top-1/2 left-1/2 w-1 h-24 bg-white/30 -translate-x-1/2 -translate-y-1/2 rounded"></div>
                         <div id="ropeKnot" class="absolute top-1/2 left-1/2 w-12 h-12 bg-red-600 rounded-full border-4 border-white -translate-x-1/2 -translate-y-1/2 transition-all duration-500 shadow-[0_0_20px_rgba(220,38,38,0.8)]"></div>
                     </div>
-                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-[6rem] drop-shadow-2xl z-10 scale-x-[-1]">🐻</div>
-                    <div class="absolute right-4 top-1/2 -translate-y-1/2 text-[6rem] drop-shadow-2xl z-10">🐼</div>
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-[6rem] drop-shadow-2xl z-10 rotate-90">🐻</div>
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 text-[6rem] drop-shadow-2xl z-10 -rotate-90">🐼</div>
                 </div>
             `;
         } else if(gameType === 'panjat_pinang') {
             area.innerHTML = `
                 <div class="flex h-full w-full bg-gradient-to-t from-sky-900 to-[#0f172a]">
-                    <div class="flex-1 relative flex justify-center h-full pt-10 pb-4">
-                        <div class="absolute top-4 text-4xl drop-shadow-lg z-0 text-white">⭐</div>
-                        <div class="w-8 h-full bg-gradient-to-r from-amber-800 via-amber-600 to-amber-900 rounded-t-full shadow-lg relative border-x border-amber-950">
-                            <div id="vis1" class="absolute left-1/2 -translate-x-1/2 text-[4.5rem] transition-all duration-500 drop-shadow-2xl z-10" style="bottom: 5%;">🐻</div>
+                    <div class="flex-1 relative flex justify-center h-full pt-12 pb-4">
+                        <div class="absolute top-2 text-[4rem] drop-shadow-[0_0_15px_rgba(255,215,0,0.8)] z-30 text-white leading-none">⭐</div>
+                        <div class="w-8 h-full bg-gradient-to-r from-amber-800 via-amber-600 to-amber-900 rounded-t-full shadow-lg relative border-x border-amber-950 z-10">
+                            <div id="vis1" class="absolute left-1/2 -translate-x-1/2 text-[4.5rem] transition-all duration-500 drop-shadow-2xl z-20" style="bottom: 5%;">🐻</div>
                         </div>
                     </div>
                     <div class="w-1 border-l-4 border-dashed border-white/20"></div>
-                    <div class="flex-1 relative flex justify-center h-full pt-10 pb-4">
-                        <div class="absolute top-4 text-4xl drop-shadow-lg z-0 text-white">⭐</div>
-                        <div class="w-8 h-full bg-gradient-to-r from-amber-800 via-amber-600 to-amber-900 rounded-t-full shadow-lg relative border-x border-amber-950">
-                            <div id="vis2" class="absolute left-1/2 -translate-x-1/2 text-[4.5rem] transition-all duration-500 drop-shadow-2xl z-10" style="bottom: 5%;">🐼</div>
+                    <div class="flex-1 relative flex justify-center h-full pt-12 pb-4">
+                        <div class="absolute top-2 text-[4rem] drop-shadow-[0_0_15px_rgba(255,215,0,0.8)] z-30 text-white leading-none">⭐</div>
+                        <div class="w-8 h-full bg-gradient-to-r from-amber-800 via-amber-600 to-amber-900 rounded-t-full shadow-lg relative border-x border-amber-950 z-10">
+                            <div id="vis2" class="absolute left-1/2 -translate-x-1/2 text-[4.5rem] transition-all duration-500 drop-shadow-2xl z-20" style="bottom: 5%;">🐼</div>
                         </div>
                     </div>
                 </div>
@@ -499,18 +522,18 @@
                         <div class="absolute top-0 w-full h-12 bg-[repeating-linear-gradient(45deg,white,white_15px,black_15px,black_30px)] border-b-4 border-white opacity-90"></div>
                         <div class="absolute top-2 left-1/2 -translate-x-1/2 text-[3rem] drop-shadow-lg z-0">🏁</div>
                         
-                        <div id="vis1" class="absolute left-1/2 -translate-x-1/2 transition-all duration-500 flex flex-col items-center" style="bottom: 5%;">
-                            <div class="text-[4.5rem] drop-shadow-xl z-10">🐻</div>
-                            <div class="w-20 h-14 bg-amber-300 border-4 border-amber-500 rounded-b-[2rem] rounded-t-md -mt-8 z-20 shadow-lg flex justify-center pt-1"><div class="w-8 h-1 border-b-2 border-amber-500/50"></div></div>
+                        <div id="vis1" class="absolute left-1/2 -translate-x-1/2 transition-all duration-500 flex flex-col items-center z-10" style="bottom: 5%;">
+                            <div class="text-[4.5rem] drop-shadow-xl z-20">🐻</div>
+                            <div class="w-20 h-14 bg-amber-300 border-4 border-amber-500 rounded-b-[2rem] rounded-t-md -mt-8 z-30 shadow-lg flex justify-center pt-1"><div class="w-8 h-1 border-b-2 border-amber-500/50"></div></div>
                         </div>
                     </div>
                     <div class="flex-1 relative bg-amber-800/80">
                         <div class="absolute top-0 w-full h-12 bg-[repeating-linear-gradient(45deg,white,white_15px,black_15px,black_30px)] border-b-4 border-white opacity-90"></div>
                         <div class="absolute top-2 left-1/2 -translate-x-1/2 text-[3rem] drop-shadow-lg z-0">🏁</div>
                         
-                        <div id="vis2" class="absolute left-1/2 -translate-x-1/2 transition-all duration-500 flex flex-col items-center" style="bottom: 5%;">
-                            <div class="text-[4.5rem] drop-shadow-xl z-10">🐼</div>
-                            <div class="w-20 h-14 bg-amber-300 border-4 border-amber-500 rounded-b-[2rem] rounded-t-md -mt-8 z-20 shadow-lg flex justify-center pt-1"><div class="w-8 h-1 border-b-2 border-amber-500/50"></div></div>
+                        <div id="vis2" class="absolute left-1/2 -translate-x-1/2 transition-all duration-500 flex flex-col items-center z-10" style="bottom: 5%;">
+                            <div class="text-[4.5rem] drop-shadow-xl z-20">🐼</div>
+                            <div class="w-20 h-14 bg-amber-300 border-4 border-amber-500 rounded-b-[2rem] rounded-t-md -mt-8 z-30 shadow-lg flex justify-center pt-1"><div class="w-8 h-1 border-b-2 border-amber-500/50"></div></div>
                         </div>
                     </div>
                 </div>
